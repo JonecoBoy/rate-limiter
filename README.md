@@ -16,8 +16,13 @@ Este projeto implementa um rate limiter em Go que controla o tráfego de requisi
 
 ## Variáveis de Ambiente
 
+Renomear o .env.example para .env
+
 - `REDIS_ADDR`: Endereço do Redis.
+-  `SERVER_PORT`: Porta do servidor.
 - `RATE_LIMIT_STRATEGY`: Tipo de estratégia de armazenamento (memory ou redis).
+- `RATE_LIMIT_DURATION`: Duração do rate limit em segundos.
+- `BLOCK_TIME`: Tempo de bloqueio em segundos.
 - `RATE_LIMIT_IP`: Limite de requisições por segundo por IP.
 - `RATE_LIMIT_TOKEN`: Limite de requisições por segundo por Token.
 - `BLOCK_TIME`: Tempo de bloqueio em segundos.

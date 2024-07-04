@@ -31,6 +31,10 @@ func main() {
 	r.HandleFunc("/", routes.HomeHandler).Methods("GET")
 
 	webPort := os.Getenv("SERVER_PORT")
+	if webPort == "" {
+		webPort = "8080"
+
+	}
 
 	server := &http.Server{
 		Handler:      r,
