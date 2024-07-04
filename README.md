@@ -24,4 +24,7 @@ Este projeto implementa um rate limiter em Go que controla o tráfego de requisi
 
 ## Testes
 
-Execute os testes com o comando `go test ./...`.
+Execute os testes com o comando `go test -v`.
+Há 4 testes no set, sendo 2 deles para a estratégia de armazenamento em memória e 2 para a estratégia de armazenamento no Redis. Esses 2 testes são para teste de ip e api_token.
+O teste de IP está limitado a 5 reqs por segundo, e o teste de api_token está limitado a 10 reqs por segundo.
+Ambos os testes testão as requisições permitidas e fazem uma extra (6a no caso do ip e 11a no caso de api_token) na qual o teste espera ser bloqueado.

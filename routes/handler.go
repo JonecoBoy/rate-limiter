@@ -8,5 +8,5 @@ import (
 // HomeHandler handles the requests to the root endpoint.
 func HomeHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "Welcome to the Rate Limited API!")
+	fmt.Fprintf(w, "Hello World Rate Limited API by Joneco!")
 }

@@ -1,7 +1,10 @@
 package limiter
 
 import (
+	"fmt"
 	"net/http"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -11,17 +14,23 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 		ip := strings.Split(r.RemoteAddr, ":")[0]
 		apiKey := r.Header.Get("API_KEY")
 
-		limit := 10 // default limit per IP
-		duration := time.Second
+		limit, _ := strconv.Atoi(os.Getenv("RATE_LIMIT_IP")) // Default limit per IP
+		ms, _ := strconv.Atoi(os.Getenv("RATE_LIMIT_DURATION"))
+		duration := time.Millisecond * time.Duration(ms)
 
 		if apiKey != "" {
-			// Example of token-based rate limit, you can enhance it as per requirements
-			limit = 100
+			limit, _ = strconv.Atoi(os.Getenv("RATE_LIMIT_TOKEN"))
 		}
 
-		if !rl.Allow(ip, limit, duration) {
+		result := rl.Allow(ip, limit, duration)
+		if !result.Allowed {
 			w.WriteHeader(http.StatusTooManyRequests)
-			w.Write([]byte("you have reached the maximum number of requests or actions allowed within a certain time frame"))
+			if result.IsBlocked {
+				//w.Write([]byte(fmt.Sprintf("You have reached the maximum number of requests or actions allowed. You are blocked until %s.", result.UnblockTime.Format(time.RFC1123))))
+				w.Write([]byte(fmt.Sprintf("You have reached the maximum number of requests or actions allowed.")))
+			} else {
+				w.Write([]byte("You have reached the maximum number of requests or actions allowed."))
+			}
 			return
 		}
 

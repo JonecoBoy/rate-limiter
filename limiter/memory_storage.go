@@ -1,6 +1,7 @@
 package limiter
 
 import (
+	"os"
 	"sync"
 	"time"
 )
@@ -10,45 +11,79 @@ type MemoryStorage struct {
 	tokens map[string]*TokenBucket
 }
 
-type TokenBucket struct {
-	tokens     int
-	lastRefill time.Time
-	refillRate int
-	bucketSize int
-}
-
 func NewMemoryStorage() *MemoryStorage {
 	return &MemoryStorage{
 		tokens: make(map[string]*TokenBucket),
 	}
 }
 
-func (ms *MemoryStorage) Allow(key string, limit int, duration time.Duration) bool {
+func (ms *MemoryStorage) Cleanup(keys ...string) {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 
-	now := time.Now()
+	for _, key := range keys {
+		delete(ms.tokens, key)
+	}
+}
+
+func (ms *MemoryStorage) IsBlocked(key string) bool {
 	if bucket, exists := ms.tokens[key]; exists {
-		ms.refill(bucket, now)
-		if bucket.tokens > 0 {
-			bucket.tokens--
-			return true
+		return bucket.blocked && time.Now().Before(bucket.blockedUntil)
+	}
+	return false
+}
+
+func (ms *MemoryStorage) Block(key string, blockTime time.Duration) {
+	if bucket, exists := ms.tokens[key]; exists {
+		bucket.blocked = true
+		bucket.blockedUntil = time.Now().Add(blockTime)
+	}
+}
+
+func (ms *MemoryStorage) Allow(key string, limit int, duration time.Duration) AllowResponse {
+	now := time.Now()
+	response := AllowResponse{Allowed: true, IsBlocked: false}
+
+	if ms.IsBlocked(key) {
+		if bucket, exists := ms.tokens[key]; exists {
+			response.Allowed = false
+			response.IsBlocked = true
+			response.UnblockTime = bucket.blockedUntil
 		}
-		return false
+		return response
 	}
 
-	ms.tokens[key] = &TokenBucket{
-		tokens:     limit - 1,
-		lastRefill: now,
-		refillRate: limit,
-		bucketSize: limit,
+	if bucket, exists := ms.tokens[key]; exists {
+		if now.Sub(bucket.lastRefill) >= bucket.duration {
+			bucket.tokens = limit
+			bucket.lastRefill = now
+		} else {
+			ms.refill(bucket, now)
+			if bucket.tokens > 0 {
+				bucket.tokens--
+			} else {
+				response.Allowed = false
+				blockTime, _ := time.ParseDuration(os.Getenv("BLOCK_TIME") + "s")
+				ms.Block(key, blockTime)
+				response.IsBlocked = true
+				response.UnblockTime = now.Add(blockTime)
+			}
+		}
+	} else {
+		ms.tokens[key] = &TokenBucket{
+			tokens:     limit - 1,
+			lastRefill: now,
+			refillRate: limit,
+			bucketSize: limit,
+			duration:   duration,
+		}
 	}
-	return true
+	return response
 }
 
 func (ms *MemoryStorage) refill(bucket *TokenBucket, now time.Time) {
 	timeElapsed := now.Sub(bucket.lastRefill)
-	tokensToAdd := int(timeElapsed.Seconds()) * bucket.refillRate
+	tokensToAdd := int(timeElapsed.Seconds()) * bucket.refillRate / int(bucket.duration.Seconds())
 
 	if tokensToAdd > 0 {
 		bucket.tokens += tokensToAdd

@@ -30,12 +30,16 @@ func main() {
 
 	r.HandleFunc("/", routes.HomeHandler).Methods("GET")
 
+	webPort := os.Getenv("SERVER_PORT")
+
 	server := &http.Server{
 		Handler:      r,
-		Addr:         ":8080",
+		Addr:         ":" + webPort,
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}
+
+	log.Print("Server starting on port " + webPort)
 
 	log.Fatal(server.ListenAndServe())
 }
